@@ -45,8 +45,8 @@ openstack stack output show perf-test1 desc
 ```
 
 Login credentials:
-User: *root*
-Pass: *c0ntrail123*
+User: **root**
+Pass: **c0ntrail123**
 
 4. Execute tests
 
