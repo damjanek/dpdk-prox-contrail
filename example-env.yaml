@@ -1,0 +1,19 @@
+parameters:
+  vrouter_gen_cpus: 4
+  vrouter_swap_cpus: 3
+  gen_az: nova:compute1.example.com
+  swap_az: nova:compute2.example.com
+  jump_az: nova:compute3.example.com
+  floating_id: public-net
+  same_host: False
+  packet_mode: True
+  drop_rate: "0.01"
+  start_speed: 200
+  packet_sizes:
+  - 64
+  - 256
+  - 512
+  - 1024
+  - 1500
+  flows:
+  - 1024
