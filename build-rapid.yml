@@ -155,6 +155,7 @@ resources:
       extra_specs:
         'hw:cpu_policy': 'dedicated'
         'hw:mem_page_size': 'large'
+        
   flavor_swap:
     type: OS::Nova::Flavor
     properties:
