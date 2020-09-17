@@ -96,15 +96,15 @@ parameters:
     default:
       - 1024
   lat_list:
-    type: comma_delimited_list
+    type: string
     description: "Cores used for lat"
     default: "4,5"
   gen_list:
-    type: comma_delimited_list
+    type: string
     description: "Cores used for gen"
     default: "2,3"
   swap_list:
-    type: comma_delimited_list
+    type: string
     description: "Cores used for swap"
     default: "2,3"
   gen_flavor_cpu:
@@ -203,9 +203,9 @@ resources:
         str_replace:
           template: { get_file: configure.rapid.sh }
           params:
-            '%gen_list%': { get_param: [gen_list, value] }
-            '%lat_list%': { get_param: [lat_list, value] }
-            '%swap_list%': { get_param: [swap_list, value] }
+            '%gen_list%': { get_param: gen_list }
+            '%lat_list%': { get_param: lat_list }
+            '%swap_list%': { get_param: swap_list }
             '%gen_name%': { get_attr: [gen_vm, name]}
             '%swap_name%': { get_attr: [swap_vm, name]}
             '%gen_mac%': { get_attr: [vmi_data_gen, virtual_machine_interface_mac_addresses, mac_address, 0]}
@@ -502,13 +502,13 @@ resources:
 outputs:
   gen_cores:
     description: "List of cores used as gen cores"
-    value: {get_param: [gen_list, value] }
+    value: {get_param: gen_list}
   lat_cores:
     description: "List of cores used as lat cores"
-    value: {get_param: [lat_list, value] }
+    value: {get_param: lat_list}
   swap_cores:
     description: "List of cores used as swap cores"
-    value: {get_param: [swap_list, value] }
+    value: {get_param: swap_list}
   desc:
     description: "Deployed testing permutation"
     value: {get_attr: [description, value] }

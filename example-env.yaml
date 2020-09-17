@@ -8,7 +8,7 @@ parameters:
   gen_az: nova:compute1.example.com
   swap_az: nova:compute2.example.com
   jump_az: nova:compute3.example.com
-  floating_network: public-net
+  #floating_network: public-net
   packet_mode: True
   drop_rate: "0.01"
   start_speed: 200

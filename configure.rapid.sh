@@ -15,13 +15,13 @@ tasks=[0]
 name = Generator
 config_file = gen.cfg
 dest_vm = 2
-gencores = %gen_list%
-latcores = %lat_list%
+gencores = [%gen_list%]
+latcores = [%lat_list%]
 
 [TestM2]
 name = Swap
 config_file = swap.cfg
-cores = %swap_list%
+cores = [%swap_list%]
 
 [BinarySearchParams]
 drop_rate_threshold = %drop_rate%
