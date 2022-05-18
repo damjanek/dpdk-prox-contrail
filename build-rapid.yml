@@ -57,18 +57,18 @@ parameters:
     type: string
     description: "AZ for jump VM"
     default: "nova:overcloudjcx-compdpdk3hw0-0.prod1.bw.juniper.net"
-  vrouter_gen_cpus:
+  vrouter_cpus:
     type: number
     default: 4
-    description: "Number of lcores assigned to vRouter (applicable to gen HV)"
-  vrouter_swap_cpus:
-    type: number
-    default: 4
-    description: "Number of lcores assigned to vRouter (applicable to swap HV)"
+    description: "Number of allowed number of CPUs allocated for vRouter forwarding cores"
   floating_network:
     type: string
     description: "FIP network. ID or name. Not used if not passed"
     default: ""
+  same_host:
+    type: boolean
+    description: "Set to True if desired behaviour is to place gen/swap on same host"
+    default: False
   packet_mode: 
     type: boolean
     description: "Use packet mode for swap VM"
@@ -95,29 +95,6 @@ parameters:
     description: "List of concurent flow numbers used during tests"
     default:
       - 1024
-  lat_list:
-    type: string
-    description: "Cores used for lat"
-    default: "4,5"
-  gen_list:
-    type: string
-    description: "Cores used for gen"
-    default: "2,3"
-  swap_list:
-    type: string
-    description: "Cores used for swap"
-    default: "2,3"
-  gen_flavor_cpu:
-    type: number
-    description: "Number of vcpus for gen"
-    default: 6
-  swap_flavor_cpu:
-    type: number
-    description: "Number of vcpus for swap"
-    default: 4
-  jump_on_kernel_node:
-    type: boolean
-    default: False
 
 conditions:
   use_floating:
@@ -139,13 +116,16 @@ resources:
           params:
             '%stack_name%': { get_param: 'OS::stack_name' }
       extra_specs:
-        if: [{ get_param: jump_on_kernel_node},{}, {'hw:mem_page_size': 'large'}]
-
+        'hw:cpu_policy': 'dedicated'
+        'hw:mem_page_size': 'large'
   flavor_gen:
     type: OS::Nova::Flavor
     properties:
-      ram: 8192
-      vcpus: { get_param: gen_flavor_cpu}
+      ram: 16384
+      vcpus:
+        yaql:
+          expression: 2* $.data + 9
+          data: { get_param: vrouter_cpus }
       disk: 40
       name:
         str_replace:
@@ -155,12 +135,14 @@ resources:
       extra_specs:
         'hw:cpu_policy': 'dedicated'
         'hw:mem_page_size': 'large'
-        
   flavor_swap:
     type: OS::Nova::Flavor
     properties:
-      ram: 8192
-      vcpus: { get_param: swap_flavor_cpu }
+      ram: 16384
+      vcpus:
+        yaql:
+          expression: 2 * $.data + 1
+          data: { get_param: vrouter_cpus }
       disk: 40
       name:
         str_replace:
@@ -170,6 +152,30 @@ resources:
       extra_specs:
         'hw:cpu_policy': 'dedicated'
         'hw:mem_page_size': 'large'
+
+  gen_list:
+    type: OS::Heat::Value
+    properties:
+      value:
+        yaql:
+          expression: 'let(a => $.data) -> generate(1, $ < $a + 4, $ + 1)'
+          data: { get_param: vrouter_cpus }
+
+  lat_list:
+    type: OS::Heat::Value
+    properties:
+      value:
+        yaql:
+          expression: 'let(a => $.data) -> generate($a+4, $ <  2 * $a + 9, $ + 1)'
+          data: { get_param: vrouter_cpus }
+
+  swap_list:
+    type: OS::Heat::Value
+    properties:
+      value:
+        yaql:
+          expression: 'let(a => $.data) -> generate(1, $ < 2 * $a + 1 , $ + 1)'
+          data: { get_param: vrouter_cpus }
 
   control_net_name:
     type: OS::Heat::Value
@@ -203,9 +209,9 @@ resources:
         str_replace:
           template: { get_file: configure.rapid.sh }
           params:
-            '%gen_list%': { get_param: gen_list }
-            '%lat_list%': { get_param: lat_list }
-            '%swap_list%': { get_param: swap_list }
+            '%gen_list%': { get_attr: [gen_list, value] }
+            '%lat_list%': { get_attr: [lat_list, value] }
+            '%swap_list%': { get_attr: [swap_list, value] }
             '%gen_name%': { get_attr: [gen_vm, name]}
             '%swap_name%': { get_attr: [swap_vm, name]}
             '%gen_mac%': { get_attr: [vmi_data_gen, virtual_machine_interface_mac_addresses, mac_address, 0]}
@@ -428,6 +434,20 @@ resources:
       floating_network_id: { get_param: floating_network }
       port_id: { get_resource: vmi_control_jump }
 
+  anti-affinity_group:
+   type: OS::Nova::ServerGroup
+   properties:
+    name: hosts on different compute nodes
+    policies:
+     - anti-affinity
+
+  affinity_group:
+   type: OS::Nova::ServerGroup
+   properties:
+    name: hosts on the same compute node
+    policies:
+     - affinity
+
   jump_vm:
     type: OS::Nova::Server
     depends_on: [ instance_control_jump, userdata_jump ]
@@ -464,6 +484,8 @@ resources:
       networks:
       - port: { get_resource: vmi_data_gen }
       - port: { get_resource: vmi_control_gen }
+      scheduler_hints:
+        group: { if: [{ get_param: same_host}, { get_resource: affinity_group }, { get_resource: anti-affinity_group }] }
 
   swap_vm:
     type: OS::Nova::Server
@@ -483,32 +505,33 @@ resources:
       networks:
       - port: { get_resource: vmi_data_swap }
       - port: { get_resource: vmi_control_swap }
- 
+      scheduler_hints:
+        group: { if: [{ get_param: same_host}, { get_resource: affinity_group }, { get_resource: anti-affinity_group }] }
+
   description:
     type: OS::Heat::Value
     properties:
       value:
         str_replace:
-          template: 'Packet Mode: %pm% DR: %dr% Start speed: %ss%% Flows: %flows% Packet sizes: %ps% Vrouter cores for gen: %vrg% Vrouter cores for swap: %vrs%.'
+          template: 'Packet Mode: %pm% DR: %dr% Start speed: %ss%% Flows: %flows% Packet sizes: %ps% Vrouter cores: %vr%'
           params:
             '%pm%': {get_param: packet_mode}
             '%dr%': {get_param: drop_rate}
             '%ss%': {get_param: start_speed}
             '%flows%': {get_param: flows}
             '%ps%': {get_param: packet_sizes}
-            '%vrg%': {get_param: vrouter_gen_cpus}
-            '%vrs%': {get_param: vrouter_swap_cpus}
+            '%vr%': {get_param: vrouter_cpus}
 
 outputs:
   gen_cores:
     description: "List of cores used as gen cores"
-    value: {get_param: gen_list}
+    value: {get_attr: [gen_list, value] }
   lat_cores:
     description: "List of cores used as lat cores"
-    value: {get_param: lat_list}
+    value: {get_attr: [lat_list, value] }
   swap_cores:
     description: "List of cores used as swap cores"
-    value: {get_param: swap_list}
+    value: {get_attr: [swap_list, value] }
   desc:
     description: "Deployed testing permutation"
     value: {get_attr: [description, value] }

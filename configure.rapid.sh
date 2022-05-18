@@ -15,13 +15,13 @@ tasks=[0]
 name = Generator
 config_file = gen.cfg
 dest_vm = 2
-gencores = [%gen_list%]
-latcores = [%lat_list%]
+gencores = %gen_list%
+latcores = %lat_list%
 
 [TestM2]
 name = Swap
 config_file = swap.cfg
-cores = [%swap_list%]
+cores = %swap_list%
 
 [BinarySearchParams]
 drop_rate_threshold = %drop_rate%
@@ -240,7 +240,7 @@ packet id pos=50
 signature=0x98765432
 signature pos=56
 accuracy limit nsec=1000000
-;latency bucket size=\${bucket_size_exp}
+latency bucket size=\${bucket_size_exp}
 ;arp update time=1
 EOF
 cat > /opt/openstackrapid/samplevnf/VNFs/DPPD-PROX/helper-scripts/rapid/l2gen.cfg << EOF
