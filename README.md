@@ -23,7 +23,7 @@ openstack image create --disk-format raw --container-format bare --public --prop
 
 ```
 
-3. Copy example file to example-env.yaml, adjust and then create a stack:
+2. Copy example file to example-env.yaml, adjust and then create a stack:
 
 
 ```
@@ -48,7 +48,7 @@ Login credentials:
 User: **root**
 Pass: **c0ntrail123**
 
-4. Execute tests
+3. Execute tests
 
 On Jump VM:
 
